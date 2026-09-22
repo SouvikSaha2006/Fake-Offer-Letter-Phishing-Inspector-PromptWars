@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import scanRouter from './routes/scan.js';
 
 // Load environment variables
 dotenv.config();
@@ -26,6 +27,9 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Forensic scan routes
+app.use('/api', scanRouter);
 
 // Static assets serving for frontend client
 const clientDistPath = path.resolve(__dirname, '../client/dist');
