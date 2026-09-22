@@ -1,0 +1,30 @@
+{
+  "name": "phishguard-inspector",
+  "version": "1.0.0",
+  "description": "PhishGuard Inspector - Fake Offer Letter & Phishing Inspector",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan.bold,green.bold\" \"nodemon server/index.js\" \"npm run dev --prefix client\"",
+    "dev:server": "nodemon server/index.js",
+    "build": "npm run build --prefix client",
+    "start": "node server/index.js"
+  },
+  "keywords": [
+    "phishing-detector",
+    "security",
+    "gemini",
+    "offer-letter-inspector"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.9"
+  }
+}
