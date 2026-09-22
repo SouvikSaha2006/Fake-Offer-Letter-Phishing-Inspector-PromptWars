@@ -8,7 +8,8 @@
     "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan.bold,green.bold\" \"nodemon server/index.js\" \"npm run dev --prefix client\"",
     "dev:server": "nodemon server/index.js",
     "build": "npm run build --prefix client",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "test": "node test/testDeterministic.js"
   },
   "keywords": [
     "phishing-detector",
