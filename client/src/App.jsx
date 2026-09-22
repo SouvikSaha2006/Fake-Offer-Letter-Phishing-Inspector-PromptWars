@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, ShieldAlert, AlertCircle, Terminal, Search, Lock } from 'lucide-react';
+import { ShieldAlert, AlertCircle, Terminal, Lock } from 'lucide-react';
 import Header from './components/Header';
 import ScannerInput from './components/ScannerInput';
 import ThreatGauge from './components/ThreatGauge';
@@ -8,28 +8,49 @@ import Remediation from './components/Remediation';
 import { TEST_SCENARIOS } from './data/sampleScenarios';
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState('text'); // 'text' | 'url'
   const [text, setText] = useState('');
   const [url, setUrl] = useState('');
   const [selectedScenarioId, setSelectedScenarioId] = useState('');
   const [isScanning, setIsScanning] = useState(false);
-  const [scanResult, setScanResult] = useState(null);
   const [scanError, setScanError] = useState(null);
   const [latencyMs, setLatencyMs] = useState(null);
+
+  // Dedicated, explicit state variables directly updated from API
+  const [threatScore, setThreatScore] = useState(null);
+  const [riskCategory, setRiskCategory] = useState('AUTHENTIC');
+  const [factorDecomposition, setFactorDecomposition] = useState({
+    domainRisk: 0,
+    paymentRisk: 0,
+    proceduralRisk: 0,
+    semanticRisk: 0
+  });
+  const [findings, setFindings] = useState([]);
+  const [remediation, setRemediation] = useState([]);
+  const [domainDetails, setDomainDetails] = useState([]);
+  const [rawAuditData, setRawAuditData] = useState(null);
 
   // Handle scenario selection from header dropdown
   const handleSelectScenario = (scenarioId) => {
     setSelectedScenarioId(scenarioId);
     const scenario = TEST_SCENARIOS.find((s) => s.id === scenarioId);
     if (scenario) {
-      if (scenario.type === 'text') {
-        setText(scenario.content);
-        setUrl('');
-      } else {
+      if (scenario.type === 'url') {
+        setActiveTab('url');
         setUrl(scenario.content);
         setText('');
+      } else {
+        setActiveTab('text');
+        setText(scenario.content);
+        setUrl('');
       }
-      setScanResult(null);
+      // Clear stale scan state
+      setThreatScore(null);
+      setFindings([]);
+      setRemediation([]);
+      setRawAuditData(null);
       setScanError(null);
+      setLatencyMs(null);
     }
   };
 
@@ -38,18 +59,34 @@ export default function App() {
     setText('');
     setUrl('');
     setSelectedScenarioId('');
-    setScanResult(null);
+    setThreatScore(null);
+    setRiskCategory('AUTHENTIC');
+    setFactorDecomposition({
+      domainRisk: 0,
+      paymentRisk: 0,
+      proceduralRisk: 0,
+      semanticRisk: 0
+    });
+    setFindings([]);
+    setRemediation([]);
+    setDomainDetails([]);
+    setRawAuditData(null);
     setScanError(null);
     setLatencyMs(null);
   };
 
-  // Execute scan API request
-  const handleRunScan = async () => {
+  // Execute scan API request reading live, updated state
+  const handleRunScan = async (currentTab = activeTab) => {
     const rawText = text.trim();
-    const rawUrl = url.trim();
+    const targetUrl = url.trim();
 
-    if (!rawText && !rawUrl) {
-      setScanError('Please enter offer letter text or a target URL to scan.');
+    // Verify input presence based on active tab
+    if (currentTab === 'text' && !rawText) {
+      setScanError('Please enter offer letter or message text to analyze.');
+      return;
+    }
+    if (currentTab === 'url' && !targetUrl) {
+      setScanError('Please enter a valid target URL to inspect.');
       return;
     }
 
@@ -57,16 +94,25 @@ export default function App() {
     setScanError(null);
     const startTime = performance.now();
 
+    // Explicit payload format: sends text if on text tab, url if on url tab
+    const payload = {
+      text: currentTab === 'text' ? rawText : '',
+      url: currentTab === 'url' ? targetUrl : ''
+    };
+
+    console.log('[CLIENT SCAN] Dispatching live payload:', {
+      activeTab: currentTab,
+      textLength: payload.text.length,
+      url: payload.url
+    });
+
     try {
       const response = await fetch('/api/scan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          text: rawText,
-          url: rawUrl
-        })
+        body: JSON.stringify(payload)
       });
 
       const elapsed = Math.round(performance.now() - startTime);
@@ -78,7 +124,34 @@ export default function App() {
       }
 
       const data = await response.json();
-      setScanResult(data);
+      console.log('[CLIENT SCAN] Received forensic report:', data);
+
+      // Directly update all state variables with live API response
+      const score = typeof data.threatScore === 'number' 
+        ? data.threatScore 
+        : (data.scamThreatIndex ?? 0);
+
+      const category = data.category || data.riskCategory || 'AUTHENTIC';
+
+      const decomposition = {
+        domainRisk: data.metrics?.domainRisk ?? data.breakdown?.domainRisk ?? 0,
+        paymentRisk: data.metrics?.paymentRisk ?? data.breakdown?.paymentRisk ?? 0,
+        proceduralRisk: data.metrics?.proceduralRisk ?? data.breakdown?.proceduralRisk ?? 0,
+        semanticRisk: data.metrics?.semanticRisk ?? data.breakdown?.semanticRisk ?? data.breakdown?.geminiRisk ?? 0
+      };
+
+      const findingsList = data.findings || data.itemizedEvidence || [];
+      const remediationList = data.remediation || data.remediationAdvice || [];
+      const domains = data.details?.domains?.domainDetails || data.domains?.domainDetails || [];
+
+      setThreatScore(score);
+      setRiskCategory(category);
+      setFactorDecomposition(decomposition);
+      setFindings(findingsList);
+      setRemediation(remediationList);
+      setDomainDetails(domains);
+      setRawAuditData(data);
+
     } catch (err) {
       console.error('[Scan Execution Error]:', err);
       setScanError(err.message || 'Failed to connect to PhishGuard backend engine.');
@@ -86,6 +159,8 @@ export default function App() {
       setIsScanning(false);
     }
   };
+
+  const hasReport = threatScore !== null;
 
   return (
     <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col selection:bg-emerald-500/30 selection:text-emerald-200">
@@ -103,7 +178,7 @@ export default function App() {
         {scanError && (
           <div 
             role="alert"
-            className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-start gap-3 shadow-lg animate-fadeIn"
+            className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-start gap-3 shadow-lg"
           >
             <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
             <div className="flex-1 text-xs leading-relaxed">
@@ -112,7 +187,7 @@ export default function App() {
             </div>
             <button
               onClick={() => setScanError(null)}
-              className="text-xs text-rose-400 hover:text-rose-200 underline font-mono"
+              className="text-xs text-rose-400 hover:text-rose-200 underline font-mono focus:outline-none focus:ring-2 focus:ring-rose-500/50"
             >
               Dismiss
             </button>
@@ -129,6 +204,8 @@ export default function App() {
               setText={setText}
               url={url}
               setUrl={setUrl}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
               onScan={handleRunScan}
               isScanning={isScanning}
               onClear={handleClear}
@@ -170,31 +247,32 @@ export default function App() {
             )}
 
             {/* State 2: Active Diagnostic Report */}
-            {!isScanning && scanResult && (
-              <div className="space-y-6 animate-fadeIn">
+            {!isScanning && hasReport && (
+              <div className="space-y-6">
                 {/* Hero Radial Threat Gauge */}
                 <ThreatGauge
-                  score={scanResult.scamThreatIndex}
-                  riskCategory={scanResult.riskCategory}
-                  breakdown={scanResult.breakdown}
+                  score={threatScore}
+                  riskCategory={riskCategory}
+                  factorDecomposition={factorDecomposition}
+                  breakdown={factorDecomposition}
                 />
 
                 {/* Forensic Findings Matrix */}
                 <FlagBadges
-                  findings={scanResult.itemizedEvidence || []}
-                  domainDetails={scanResult.domains?.domainDetails || []}
+                  findings={findings}
+                  domainDetails={domainDetails}
                 />
 
                 {/* Remediation & Countermeasure Playbook */}
                 <Remediation
-                  advice={scanResult.remediationAdvice || []}
-                  fullAuditData={scanResult}
+                  advice={remediation}
+                  fullAuditData={rawAuditData}
                 />
               </div>
             )}
 
             {/* State 3: Empty State Placeholder */}
-            {!isScanning && !scanResult && (
+            {!isScanning && !hasReport && (
               <div className="bg-[#0f172a] rounded-xl border border-slate-800/90 p-8 shadow-xl flex flex-col items-center justify-center text-center min-h-[460px]">
                 <div className="w-16 h-16 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-center mb-4 text-slate-500">
                   <Lock className="w-8 h-8 text-slate-400" />

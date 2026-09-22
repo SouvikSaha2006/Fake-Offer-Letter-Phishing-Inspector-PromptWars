@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FileText, Globe, Play, Trash2, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import React from 'react';
+import { FileText, Globe, Play, Trash2, Loader2, AlertCircle } from 'lucide-react';
 
 export default function ScannerInput({ 
   text, 
@@ -8,17 +8,17 @@ export default function ScannerInput({
   setUrl, 
   onScan, 
   isScanning, 
-  onClear 
+  onClear,
+  activeTab = 'text',
+  setActiveTab
 }) {
-  const [activeTab, setActiveTab] = useState('text'); // 'text' | 'url'
-
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (isScanning) return;
-    onScan();
+    onScan(activeTab);
   };
 
   const hasContent = activeTab === 'text' ? text.trim().length > 0 : url.trim().length > 0;
@@ -40,8 +40,8 @@ export default function ScannerInput({
         <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
           <button
             type="button"
-            onClick={() => setActiveTab('text')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all ${
+            onClick={() => setActiveTab && setActiveTab('text')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
               activeTab === 'text'
                 ? 'bg-slate-800 text-emerald-400 shadow-sm border border-slate-700/60'
                 : 'text-slate-400 hover:text-slate-200'
@@ -52,8 +52,8 @@ export default function ScannerInput({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('url')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all ${
+            onClick={() => setActiveTab && setActiveTab('url')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-sky-500/50 ${
               activeTab === 'url'
                 ? 'bg-slate-800 text-sky-400 shadow-sm border border-slate-700/60'
                 : 'text-slate-400 hover:text-slate-200'
@@ -128,7 +128,7 @@ export default function ScannerInput({
               type="button"
               onClick={onClear}
               disabled={isScanning || (!text && !url)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all disabled:opacity-40 disabled:pointer-events-none"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all disabled:opacity-40 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-rose-500/50"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Clear</span>
@@ -138,7 +138,7 @@ export default function ScannerInput({
               type="submit"
               data-testid="scan-button"
               disabled={isScanning || !hasContent}
-              className={`flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-semibold tracking-wide uppercase transition-all shadow-lg ${
+              className={`flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-semibold tracking-wide uppercase transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
                 isScanning
                   ? 'bg-emerald-600/50 text-emerald-200 cursor-wait animate-pulse'
                   : hasContent

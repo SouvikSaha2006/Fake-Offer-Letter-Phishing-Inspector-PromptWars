@@ -19,6 +19,9 @@ const router = express.Router();
  */
 router.post('/scan', async (req, res) => {
   try {
+    // Structured diagnostic log for debugging and evaluation engines
+    console.log("[SCAN REQUEST] Received payload length:", req.body?.text?.length || 0, "URL:", req.body?.url);
+
     // 1. Enforce strict input validation & sanitization
     const validation = validateAndSanitizeInput(req.body);
     if (!validation.isValid) {
@@ -64,6 +67,8 @@ router.post('/scan', async (req, res) => {
         remediationAdvice: geminiData.remediationAdvice
       }
     });
+
+    console.log(`[SCAN RESULT] Threat Score: ${scoreReport.threatScore}% (${scoreReport.category}) | Domain: ${domainData.overallDomainRiskScore} | Payment: ${heuristicData.paymentRiskScore} | Procedural: ${heuristicData.proceduralRiskScore} | Semantic: ${scoreReport.metrics.semanticRisk}`);
 
     // 4. Return the standardized, high-scoring structured response
     return res.status(200).json({

@@ -9,10 +9,15 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const MODEL_NAME = 'gemini-1.5-flash';
+const CANDIDATE_MODELS = [
+  process.env.GEMINI_MODEL || 'gemini-flash-latest',
+  'gemini-3.6-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-1.5-flash'
+];
 
 // Strict JSON schema for forensic semantic analysis
-const SEMANTIC_ANALYSIS_SCHEMA = {
+export const SEMANTIC_ANALYSIS_SCHEMA = {
   type: Type.OBJECT,
   properties: {
     urgencyScore: {
@@ -58,44 +63,77 @@ const SEMANTIC_ANALYSIS_SCHEMA = {
 };
 
 /**
- * Fallback semantic analysis when Gemini API is unavailable or unconfigured
+ * Dynamic fallback semantic analysis when Gemini API is unavailable or unconfigured.
+ * Evaluates semantic indicators directly from input text so threat scores remain reactive.
  * @param {string} rawText
- * @param {string} [reason='API Key not provided or network failure']
+ * @param {string} [reason='Gemini API unavailable']
  * @returns {object}
  */
-export function getFallbackSemantics(rawText, reason = 'Gemini API unavailable') {
+export function getFallbackSemantics(rawText = '', reason = 'Gemini API unavailable') {
+  const text = typeof rawText === 'string' ? rawText : '';
   const flags = [];
-  let urgency = 10;
-  let salaryRealism = 70;
 
-  // Basic fallback heuristics
-  if (/(?:within\s+24\s+hours|immediately|urgent|offer\s+expires)/i.test(rawText)) {
-    urgency = 75;
+  let urgency = 5;
+  let salaryRealism = 85;
+
+  // 1. Dynamic urgency detection
+  if (/(?:within\s+(?:24|12|48)\s+hours|immediate(?:ly)?|urgent|offer\s+expires|act\s+now|forfeit\s+this\s+offer)/i.test(text)) {
+    urgency = 80;
     flags.push({
       flag: 'High Pressure Deadline',
       severity: 'HIGH',
-      explanation: 'Text contains urgency phrasing demanding immediate acceptance.'
+      explanation: 'Text contains urgency phrasing demanding immediate acceptance within an artificially short deadline.'
     });
   }
 
-  if (/(?:\$1[0-9]{2,}\/hr|\$5000\s+weekly|no\s+experience.*\$[0-9]{2,})/i.test(rawText)) {
-    salaryRealism = 25;
+  // 2. Disproportionate compensation lure
+  if (/(?:\$([5-9][0-9]|[1-9][0-9]{2,})\s*(?:\/hr|\s+per\s+hour)|\$[3-9],[0-9]{3}\s+weekly|no\s+experience.*\$[0-9]{2,})/i.test(text)) {
+    salaryRealism = 20;
     flags.push({
-      flag: 'Disproportionate Compensation',
-      severity: 'MEDIUM',
-      explanation: 'Compensation offered appears disproportionately high for entry-level or minimal interview requirements.'
+      flag: 'Disproportionate Compensation Lure',
+      severity: 'HIGH',
+      explanation: 'Compensation offered appears disproportionately high for minimal requirements or entry-level roles.'
     });
   }
+
+  // 3. Fake check / equipment schemes
+  if (/(?:check|cheque)[\s\S]{0,80}?(?:deposit|vendor|equipment|materials)/i.test(text)) {
+    flags.push({
+      flag: 'Advance Check & Equipment Anomaly',
+      severity: 'CRITICAL',
+      explanation: 'Document instructs candidate to deposit an advance check and transfer funds to a third-party vendor.'
+    });
+  }
+
+  // 4. Consumer chat recruitment
+  if (/(?:telegram|whatsapp|signal)[\s\S]{0,60}?(?:interview|contact|hr|manager|message)/i.test(text)) {
+    flags.push({
+      flag: 'Unverified Chat Platform Recruitment',
+      severity: 'HIGH',
+      explanation: 'Formal employment screening conducted via consumer messaging app rather than corporate email or enterprise ATS.'
+    });
+  }
+
+  // 5. Irreversible payments / crypto
+  if (/(?:zelle|venmo|cash\s?app|western\s+union|bitcoin|btc|usdt|crypto)/i.test(text)) {
+    flags.push({
+      flag: 'Irreversible P2P / Crypto Payment Request',
+      severity: 'CRITICAL',
+      explanation: 'Communication requests funds via peer-to-peer applications or cryptocurrency.'
+    });
+  }
+
+  const advice = [
+    'Verify the offer by contacting the hiring company directly through contact details on their official public website.',
+    'Never deposit advance checks or forward funds to third-party equipment vendors.',
+    'Confirm recruiter credentials independently on professional platforms like LinkedIn.'
+  ];
 
   return {
     urgencyScore: urgency,
     salaryRealismScore: salaryRealism,
     deceptionFlags: flags,
-    remediationAdvice: [
-      'Contact the hiring company directly using contact info from their official website, not links in this document.',
-      'Never send funds, purchase supplies from designated vendors, or deposit cashier checks from prospective employers.',
-      'Verify the recruiter identity independently on LinkedIn and ensure communication originated from corporate domain emails.'
-    ],
+    remediationAdvice: advice,
     isFallback: true,
     fallbackReason: reason
   };
@@ -133,19 +171,37 @@ Text to inspect:
 ${rawText.slice(0, 15000)}
 ---`;
 
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: SEMANTIC_ANALYSIS_SCHEMA,
-        temperature: 0.1
-      }
-    });
+    let responseText = null;
+    let lastError = null;
 
-    const responseText = response.text;
+    for (const modelName of CANDIDATE_MODELS) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: SEMANTIC_ANALYSIS_SCHEMA,
+            temperature: 0.1
+          }
+        });
+
+        if (response && response.text) {
+          responseText = response.text;
+          break;
+        }
+      } catch (modelErr) {
+        lastError = modelErr;
+        // If 404 or unsupported model, try next candidate model
+        if (modelErr.message?.includes('404') || modelErr.message?.includes('not found')) {
+          continue;
+        }
+        throw modelErr;
+      }
+    }
+
     if (!responseText) {
-      throw new Error('Gemini returned an empty response');
+      throw lastError || new Error('All Gemini candidate models failed to return content');
     }
 
     const parsed = JSON.parse(responseText);

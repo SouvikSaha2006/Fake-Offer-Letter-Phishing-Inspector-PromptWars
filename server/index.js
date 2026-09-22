@@ -1,6 +1,6 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -76,8 +76,9 @@ app.get('*', (req, res) => {
   }
 });
 
-// Start listener when not in test mode
-if (process.env.NODE_ENV !== 'test') {
+// Start listener only when executed directly (not when imported in test suites)
+const isDirectRun = Boolean(process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href);
+if (isDirectRun && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`[PhishGuard Server] Running on http://localhost:${PORT}`);
   });

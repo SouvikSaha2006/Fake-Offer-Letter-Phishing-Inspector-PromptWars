@@ -87,9 +87,9 @@ const PATTERN_RULES = [
     title: 'Suspicious Messaging Platform Recruitment',
     explanation: 'Recruitment and formal interviews conducted strictly over consumer chat applications (Telegram, WhatsApp, Signal) without company-domain email, corporate ATS, or verified video interviews is a primary recruitment scam indicator.',
     patterns: [
-      /(?:interview|contact|reach|connect|message|chat|hr|recruiter)[\s\S]{0,60}?(?:telegram|whatsapp|signal|viber|skype\s+chat|wechat|discord)/i,
-      /(?:telegram|whatsapp|signal|viber|skype\s+chat|wechat|discord)[\s\S]{0,60}?(?:interview|contact|screening|assessment|offer|hiring\s+manager)/i,
-      /(?:download|install)\s+(?:telegram|signal|whatsapp)\s+(?:for|to\s+conduct|to\s+begin)\s+(?:the\s+)?(?:interview|screening)/i,
+      /(?:interview|contact|reach|connect|message|chat|hr|recruiter|manager)[\s\S]{0,80}?(?:telegram|whatsapp|signal|viber|skype\s+chat|wechat|discord)/i,
+      /(?:telegram|whatsapp|signal|viber|skype\s+chat|wechat|discord)[\s\S]{0,80}?(?:interview|contact|screening|assessment|offer|hiring\s+manager|recruiter|hr|manager|message|chat|connect)/i,
+      /(?:download|install)\s+(?:telegram|signal|whatsapp)/i,
       /(?:telegram|whatsapp)\s+(?:handle|username|number)\s*[:@]/i,
       /\b(?:t\.me\/[a-zA-Z0-9_]+|wa\.me\/[0-9]+)\b/i
     ]

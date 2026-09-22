@@ -150,9 +150,13 @@ export function calculateScamThreatIndex({
   const rawComposite = (0.30 * D) + (0.30 * P) + (0.20 * E) + (0.20 * S_gemini);
   let score = Math.min(100, Math.max(0, Math.round(rawComposite)));
 
-  // Elevate if critical payment scam is definitively detected
+  // Definite fraud elevation safeguards:
+  // When a verified critical check scam (P >= 90) or high payment demand is present,
+  // ensure the composite threat score is appropriately elevated.
   if (P >= 90 && score < 70) {
     score = Math.max(score, 75);
+  } else if (P >= 75 && score < 50) {
+    score = Math.max(score, 60);
   }
 
   // Determine Category: AUTHENTIC (0–29), SUSPICIOUS (30–69), CRITICAL FRAUD (70–100)
@@ -172,8 +176,8 @@ export function calculateScamThreatIndex({
   });
 
   const defaultRemediation = [
-    'Verify the offer by contacting the hiring company directly through their official public website or switchboard.',
-    'Never deposit cashier checks or forward funds to third-party equipment vendors.',
+    'Verify the offer by contacting the hiring company directly through contact details on their official public website.',
+    'Never deposit advance checks or forward funds to third-party equipment vendors.',
     'Confirm recruiter credentials independently on professional platforms like LinkedIn.'
   ];
 
