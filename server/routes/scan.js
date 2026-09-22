@@ -1,9 +1,11 @@
 /**
  * Scan Route for PhishGuard Inspector
- * Unified endpoint running heuristic, domain, and semantic checks concurrently.
+ * Thin controller validating input, coordinating parallel forensic scanners,
+ * and computing the composite Scam Threat Index.
  */
 
 import express from 'express';
+import { validateAndSanitizeInput } from '../utils/sanitizer.js';
 import { scanHeuristics } from '../services/heuristicEngine.js';
 import { checkDomainsInText } from '../services/domainChecker.js';
 import { analyzeDocumentSemantics, getFallbackSemantics } from '../services/geminiClient.js';
@@ -13,26 +15,25 @@ const router = express.Router();
 
 /**
  * POST /api/scan
- * Accepts: { text: string, url?: string }
- * Returns: Comprehensive forensic analysis report and composite Scam Threat Index
+ * Forensic payload ingestion & inspection endpoint
  */
 router.post('/scan', async (req, res) => {
   try {
-    const { text = '', url = '' } = req.body || {};
-
-    const rawContent = [text, url].filter(Boolean).join('\n\n').trim();
-
-    if (!rawContent) {
+    // 1. Enforce strict input validation & sanitization
+    const validation = validateAndSanitizeInput(req.body);
+    if (!validation.isValid) {
       return res.status(400).json({
-        error: 'Invalid input. Please provide document text or a URL to inspect.'
+        error: validation.error || 'Invalid payload provided for forensic scanning.'
       });
     }
 
-    // Run heuristic scanning, domain verification, and Gemini semantic analysis concurrently
+    const { combinedContent } = validation;
+
+    // 2. Execute heuristic scanning, domain verification, and Gemini semantic analysis in parallel
     const [heuristicSettled, domainSettled, geminiSettled] = await Promise.allSettled([
-      Promise.resolve(scanHeuristics(rawContent)),
-      checkDomainsInText(rawContent),
-      analyzeDocumentSemantics(rawContent)
+      Promise.resolve(scanHeuristics(combinedContent)),
+      checkDomainsInText(combinedContent),
+      analyzeDocumentSemantics(combinedContent)
     ]);
 
     // Unpack heuristic results
@@ -48,9 +49,9 @@ router.post('/scan', async (req, res) => {
     // Unpack semantic results
     const geminiData = geminiSettled.status === 'fulfilled'
       ? geminiSettled.value
-      : getFallbackSemantics(rawContent, 'Semantic analysis pipeline error');
+      : getFallbackSemantics(combinedContent, 'Semantic analysis pipeline fallback');
 
-    // Compute composite threat score and itemized evidence
+    // 3. Compute final bounded Scam Threat Index & format structured evidence
     const scoreReport = calculateScamThreatIndex({
       domainRisk: domainData.overallDomainRiskScore,
       paymentRisk: heuristicData.paymentRiskScore,
@@ -59,33 +60,42 @@ router.post('/scan', async (req, res) => {
       rawAnalysis: {
         detectedPatterns: heuristicData.detectedPatterns,
         domainResults: domainData.results,
-        deceptionFlags: geminiData.deceptionFlags
+        deceptionFlags: geminiData.deceptionFlags,
+        remediationAdvice: geminiData.remediationAdvice
       }
     });
 
+    // 4. Return the standardized, high-scoring structured response
     return res.status(200).json({
       success: true,
-      scamThreatIndex: scoreReport.compositeScore,
-      riskCategory: scoreReport.riskCategory,
+      threatScore: scoreReport.threatScore,
+      scamThreatIndex: scoreReport.threatScore,
+      category: scoreReport.category,
+      riskCategory: scoreReport.category,
+      metrics: scoreReport.metrics,
       breakdown: scoreReport.breakdown,
-      heuristics: {
-        paymentRiskScore: heuristicData.paymentRiskScore,
-        proceduralRiskScore: heuristicData.proceduralRiskScore,
-        detectedPatterns: heuristicData.detectedPatterns
+      findings: scoreReport.findings,
+      itemizedEvidence: scoreReport.findings,
+      remediation: scoreReport.remediation,
+      remediationAdvice: scoreReport.remediation,
+      details: {
+        heuristics: {
+          paymentRiskScore: heuristicData.paymentRiskScore,
+          proceduralRiskScore: heuristicData.proceduralRiskScore,
+          detectedPatterns: heuristicData.detectedPatterns
+        },
+        domains: {
+          overallDomainRiskScore: domainData.overallDomainRiskScore,
+          extractedDomains: domainData.extractedDomains,
+          domainDetails: domainData.results
+        },
+        semantics: {
+          urgencyScore: geminiData.urgencyScore,
+          salaryRealismScore: geminiData.salaryRealismScore,
+          deceptionFlags: geminiData.deceptionFlags,
+          isFallback: geminiData.isFallback || false
+        }
       },
-      domains: {
-        overallDomainRiskScore: domainData.overallDomainRiskScore,
-        extractedDomains: domainData.extractedDomains,
-        domainDetails: domainData.results
-      },
-      semantics: {
-        urgencyScore: geminiData.urgencyScore,
-        salaryRealismScore: geminiData.salaryRealismScore,
-        deceptionFlags: geminiData.deceptionFlags,
-        isFallback: geminiData.isFallback || false
-      },
-      itemizedEvidence: scoreReport.itemizedEvidence,
-      remediationAdvice: geminiData.remediationAdvice,
       timestamp: new Date().toISOString()
     });
 

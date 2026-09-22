@@ -9,8 +9,8 @@
     "dev:server": "nodemon server/index.js",
     "build": "npm run build --prefix client",
     "start": "node server/index.js",
-    "test": "node test/testDeterministic.js && node test/testScanPipeline.js",
-    "test:scan": "node test/testScanPipeline.js"
+    "test": "node tests/heuristics.test.js && node tests/scoreEngine.test.js && node tests/api.test.js",
+    "test:all": "node tests/heuristics.test.js && node tests/scoreEngine.test.js && node tests/api.test.js && node test/testDeterministic.js && node test/testScanPipeline.js"
   },
   "keywords": [
     "phishing-detector",
@@ -24,7 +24,9 @@
     "@google/genai": "^2.24.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

@@ -108,8 +108,8 @@ export default function ThreatGauge({ score = 0, riskCategory = 'AUTHENTIC', bre
         <span>{badgeLabel}</span>
       </div>
 
-      {/* Sub-Score Breakdown Bars */}
-      <div className="w-full mt-6 space-y-3 pt-4 border-t border-slate-800/80">
+      {/* Sub-Score Breakdown Bars with Semantic Definition List (dl/dt/dd) */}
+      <dl className="w-full mt-6 space-y-3 pt-4 border-t border-slate-800/80">
         <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
           Composite Factor Decomposition
         </div>
@@ -117,8 +117,8 @@ export default function ThreatGauge({ score = 0, riskCategory = 'AUTHENTIC', bre
         {/* 1. Domain Risk (30%) */}
         <div>
           <div className="flex justify-between text-xs font-mono mb-1">
-            <span className="text-slate-400">Domain Authority & Age (30%)</span>
-            <span className="text-slate-200 font-semibold tabular-nums">{domainRisk}/100</span>
+            <dt className="text-slate-400">Domain Authority & Age (30%)</dt>
+            <dd className="text-slate-200 font-semibold tabular-nums">{domainRisk}/100</dd>
           </div>
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div 
@@ -131,8 +131,8 @@ export default function ThreatGauge({ score = 0, riskCategory = 'AUTHENTIC', bre
         {/* 2. Payment Flags (30%) */}
         <div>
           <div className="flex justify-between text-xs font-mono mb-1">
-            <span className="text-slate-400">Payment & Deposit Demands (30%)</span>
-            <span className="text-slate-200 font-semibold tabular-nums">{paymentRisk}/100</span>
+            <dt className="text-slate-400">Payment & Deposit Demands (30%)</dt>
+            <dd className="text-slate-200 font-semibold tabular-nums">{paymentRisk}/100</dd>
           </div>
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div 
@@ -145,8 +145,8 @@ export default function ThreatGauge({ score = 0, riskCategory = 'AUTHENTIC', bre
         {/* 3. Recruitment Integrity (20%) */}
         <div>
           <div className="flex justify-between text-xs font-mono mb-1">
-            <span className="text-slate-400">Recruitment Channel Integrity (20%)</span>
-            <span className="text-slate-200 font-semibold tabular-nums">{proceduralRisk}/100</span>
+            <dt className="text-slate-400">Recruitment Channel Integrity (20%)</dt>
+            <dd className="text-slate-200 font-semibold tabular-nums">{proceduralRisk}/100</dd>
           </div>
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div 
@@ -159,8 +159,8 @@ export default function ThreatGauge({ score = 0, riskCategory = 'AUTHENTIC', bre
         {/* 4. Semantic Deception (20%) */}
         <div>
           <div className="flex justify-between text-xs font-mono mb-1">
-            <span className="text-slate-400">Semantic & Cognitive Deception (20%)</span>
-            <span className="text-slate-200 font-semibold tabular-nums">{geminiRisk}/100</span>
+            <dt className="text-slate-400">Semantic & Cognitive Deception (20%)</dt>
+            <dd className="text-slate-200 font-semibold tabular-nums">{geminiRisk}/100</dd>
           </div>
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div 
@@ -169,7 +169,7 @@ export default function ThreatGauge({ score = 0, riskCategory = 'AUTHENTIC', bre
             />
           </div>
         </div>
-      </div>
+      </dl>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 /**
  * Heuristic Engine for PhishGuard Inspector
  * Deterministic regex scanner for detecting payment, deposit, and recruitment anomalies.
+ * Enforces zero-hallucination detection of high-risk employment fraud indicators.
  */
 
 export const RISK_LEVELS = {
@@ -11,47 +12,31 @@ export const RISK_LEVELS = {
 };
 
 const PATTERN_RULES = [
-  // 1. Cashier check / check deposit + equipment purchase schemes
+  // 1. Cashier check / check deposit + equipment purchase schemes (Weight: 95)
   {
     id: 'CHECK_EQUIPMENT_SCAM',
     category: 'PAYMENT',
     severity: RISK_LEVELS.CRITICAL,
-    weight: 65,
+    weight: 95,
     title: 'Fake Check & Equipment Purchase Scheme',
-    explanation: 'Legitimate employers provide equipment directly or pay vendors directly. Sending a check and asking the candidate to deposit it and purchase equipment or refund the remainder is a classic fake check scam.',
+    explanation: 'Legitimate employers provide equipment directly or pay vendors directly. Sending a check and demanding the candidate deposit it to purchase equipment or refund the remainder is a definitive fake check fraud signature.',
     patterns: [
-      /(?:cashier(?:'s)?\s+check|certified\s+check|paper\s+check|cheque|e-?check)[\s\S]{0,120}?(?:deposit|equipment|office\s+setup|supplies|vendor|hardware|workstation|laptop|materials)/i,
-      /(?:deposit|clear)[\s\S]{0,100}?(?:check|cheque)[\s\S]{0,100}?(?:forward|send|wire|transfer|buy|purchase|vendor|refund)/i,
-      /(?:send|mail|issue|deliver)[\s\S]{0,40}?(?:you\s+)?(?:a\s+)?(?:check|cheque)[\s\S]{0,80}?(?:buy|purchase|pay|order)[\s\S]{0,80}?(?:equipment|supplies|materials|software|laptop|vendor)/i,
-      /(?:approved|accredited|designated|official)\s+vendor[\s\S]{0,80}?(?:check|equipment|supplies|purchase|order)/i,
-      /(?:home\s+office|workstation)[\s\S]{0,60}?(?:funds?|allowance)[\s\S]{0,60}?(?:check|cheque|wire)/i
+      /(?:cashier(?:'s)?\s+check|certified\s+check|paper\s+check|cheque|e-?check)[\s\S]{0,140}?(?:deposit|equipment|office\s+setup|supplies|vendor|hardware|workstation|laptop|materials)/i,
+      /(?:deposit|clear)[\s\S]{0,120}?(?:check|cheque)[\s\S]{0,120}?(?:forward|send|wire|transfer|buy|purchase|vendor|refund)/i,
+      /(?:send|mail|issue|deliver)[\s\S]{0,50}?(?:you\s+)?(?:a\s+)?(?:check|cheque)[\s\S]{0,90}?(?:buy|purchase|pay|order)[\s\S]{0,90}?(?:equipment|supplies|materials|software|laptop|vendor)/i,
+      /(?:approved|accredited|designated|official)\s+vendor[\s\S]{0,90}?(?:check|equipment|supplies|purchase|order)/i,
+      /(?:home\s+office|workstation)[\s\S]{0,70}?(?:funds?|allowance)[\s\S]{0,70}?(?:check|cheque|wire)/i
     ]
   },
 
-  // 2. Wire transfers & P2P payment requests
-  {
-    id: 'WIRE_TRANSFER_DEMAND',
-    category: 'PAYMENT',
-    severity: RISK_LEVELS.HIGH,
-    weight: 45,
-    title: 'Irreversible Wire Transfer or P2P Payment Demand',
-    explanation: 'Requests to send or receive funds via wire transfer or peer-to-peer payment apps (Western Union, MoneyGram, Zelle, Venmo, Cash App) are irreversible and heavily indicative of employment fraud.',
-    patterns: [
-      /\b(?:Western\s+Union|MoneyGram|Zelle|Venmo|Cash\s?App|Revolut)\b/i,
-      /\b(?:wire\s+transfer|direct\s+wire|bank-to-bank\s+wire|interbank\s+wire)\b/i,
-      /\bPayPal\s+(?:friends\s+and\s+family|personal\s+(?:transfer|payment))\b/i,
-      /(?:transfer|send|wire)\s+funds?\s+(?:via|through|using)\s+(?:wire|zelle|venmo|cashapp|moneygram)/i
-    ]
-  },
-
-  // 3. Cryptocurrency demands
+  // 2. Cryptocurrency demands (Weight: 80)
   {
     id: 'CRYPTOCURRENCY_DEMAND',
     category: 'PAYMENT',
     severity: RISK_LEVELS.CRITICAL,
-    weight: 60,
-    title: 'Cryptocurrency Demand or Payment',
-    explanation: 'Legitimate employers never demand job applicants or employees to send, receive, or convert company funds into cryptocurrency (Bitcoin, USDT, Ethereum) or use Bitcoin ATMs.',
+    weight: 80,
+    title: 'Cryptocurrency Demand or Wallet Deposit',
+    explanation: 'Legitimate employers never demand job applicants or employees to deposit, send, or convert company funds into cryptocurrency (Bitcoin, USDT, Ethereum) or use Bitcoin ATMs.',
     patterns: [
       /\b(?:Bitcoin|BTC|Ethereum|ETH|USDT|Tether|Binance\s+USD|BUSD|Solana|SOL|Dogecoin)\b/i,
       /\b(?:crypto(?:currency)?|crypto\s+wallet|crypto\s+deposit|crypto\s+address|blockchain\s+transfer|bitcoin\s+atm|bitcoin\s+kiosk|seed\s+phrase|private\s+key)\b/i,
@@ -60,14 +45,14 @@ const PATTERN_RULES = [
     ]
   },
 
-  // 4. Advance payment / application fees / processing deposits
+  // 3. Advance payment / application fees / processing deposits (Weight: 75)
   {
     id: 'ADVANCE_FEE_DEMAND',
     category: 'PAYMENT',
     severity: RISK_LEVELS.CRITICAL,
-    weight: 55,
+    weight: 75,
     title: 'Upfront Fee or Processing Deposit Required',
-    explanation: 'Legitimate companies never require candidates to pay application fees, background check fees, training fees, or refundable deposits prior to or as a condition of employment.',
+    explanation: 'Legitimate employers never require candidates to pay application fees, background check fees, training fees, or refundable deposits prior to or as a condition of employment.',
     patterns: [
       /(?:application|processing|registration|enrollment|onboarding|training|background\s+check|verification|orientation)\s+fee/i,
       /(?:refundable\s+deposit|security\s+deposit|equipment\s+deposit|clearance\s+fee|stamp\s+duty\s+fee|visa\s+(?:processing\s+)?fee)/i,
@@ -77,7 +62,23 @@ const PATTERN_RULES = [
     ]
   },
 
-  // 5. Recruitment channel anomalies
+  // 4. Wire transfers & P2P payment requests (Weight: 65)
+  {
+    id: 'WIRE_TRANSFER_DEMAND',
+    category: 'PAYMENT',
+    severity: RISK_LEVELS.HIGH,
+    weight: 65,
+    title: 'Irreversible Wire Transfer or P2P Payment Demand',
+    explanation: 'Demanding payments via peer-to-peer apps (Zelle, Venmo, Cash App, Western Union, MoneyGram) indicates fraud because transactions are irreversible and bypass corporate accounting channels.',
+    patterns: [
+      /\b(?:Western\s+Union|MoneyGram|Zelle|Venmo|Cash\s?App|Revolut)\b/i,
+      /\b(?:wire\s+transfer|direct\s+wire|bank-to-bank\s+wire|interbank\s+wire)\b/i,
+      /\bPayPal\s+(?:friends\s+and\s+family|personal\s+(?:transfer|payment))\b/i,
+      /(?:transfer|send|wire)\s+funds?\s+(?:via|through|using)\s+(?:wire|zelle|venmo|cashapp|moneygram)/i
+    ]
+  },
+
+  // 5. Recruitment channel anomalies (Weight: 50)
   {
     id: 'RECRUITMENT_CHANNEL_ANOMALY',
     category: 'PROCEDURAL',
@@ -94,14 +95,14 @@ const PATTERN_RULES = [
     ]
   },
 
-  // 6. Urgency and pressure tactics
+  // 6. Urgency and high-pressure tactics (Weight: 30)
   {
     id: 'URGENCY_PRESSURE_TACTIC',
     category: 'PROCEDURAL',
     severity: RISK_LEVELS.MEDIUM,
-    weight: 25,
-    title: 'Artificial Urgency or High-Pressure Deadline',
-    explanation: 'Fraudsters create artificial deadlines (e.g. 24 hours to sign or deposit money) to prevent candidates from verifying the company or thinking critically.',
+    weight: 30,
+    title: 'Artificial Urgency or Coercive Deadline',
+    explanation: 'Fraudsters manufacture urgent deadlines (e.g. 24 hours to sign or deposit money) to prevent victims from conducting independent verification.',
     patterns: [
       /(?:must\s+be\s+signed|sign\s+and\s+return|valid\s+only|offer\s+expires|immediate\s+acceptance|act\s+immediately)\s+(?:within|in)\s+(?:24|12|48|2|3|4|6)\s*(?:hours|hrs)/i,
       /(?:strictly\s+confidential|do\s+not\s+disclose|keep\s+this\s+confidential\s+until).*?(?:offer|job|process)/i,
@@ -109,14 +110,14 @@ const PATTERN_RULES = [
     ]
   },
 
-  // 7. Sensitive data exploitation
+  // 7. Premature sensitive financial data exploitation (Weight: 50)
   {
     id: 'SENSITIVE_DATA_EXPLOITATION',
     category: 'PROCEDURAL',
     severity: RISK_LEVELS.CRITICAL,
-    weight: 45,
-    title: 'Premature Sensitive Financial Credential Request',
-    explanation: 'Requesting online banking logins, PINs, card security codes, or authentication tokens during recruitment or before an employment contract is finalized is fraudulent.',
+    weight: 50,
+    title: 'Premature Financial Credential Request',
+    explanation: 'Demanding online banking logins, PINs, or debit/credit card security codes during recruitment is fraudulent.',
     patterns: [
       /\b(?:bank\s+login|online\s+banking\s+password|pin\s+number|card\s+security\s+code|cvv2?)\b/i,
       /(?:two-factor|2fa|otp|verification\s+code)[\s\S]{0,40}?(?:send|provide|share|disclose)/i,
@@ -171,7 +172,7 @@ export function scanHeuristics(rawText) {
         ruleMatched = true;
         matchedText = match[0].replace(/\s+/g, ' ').trim();
         snippet = extractSnippet(rawText, match);
-        break; // Match first trigger per rule
+        break;
       }
     }
 
@@ -180,6 +181,7 @@ export function scanHeuristics(rawText) {
         id: rule.id,
         category: rule.category,
         severity: rule.severity,
+        weight: rule.weight,
         title: rule.title,
         matchedText: matchedText.length > 80 ? matchedText.slice(0, 77) + '...' : matchedText,
         snippet,
@@ -194,7 +196,7 @@ export function scanHeuristics(rawText) {
     }
   }
 
-  // Normalize scores to [0, 100]
+  // Normalize scores bounded to [0, 100]
   const paymentRiskScore = Math.min(100, Math.round(rawPaymentScore));
   const proceduralRiskScore = Math.min(100, Math.round(rawProceduralScore));
 
