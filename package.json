@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan.bold,green.bold\" \"nodemon server/index.js\" \"npm run dev --prefix client\"",
     "dev:server": "nodemon server/index.js",
-    "build": "npm run build --prefix client",
+    "build": "npm install --prefix client && npm run build --prefix client",
     "start": "node server/index.js",
     "test": "node tests/heuristics.test.js && node tests/scoreEngine.test.js && node tests/api.test.js",
     "test:all": "node tests/heuristics.test.js && node tests/scoreEngine.test.js && node tests/api.test.js && node test/testDeterministic.js && node test/testScanPipeline.js"
